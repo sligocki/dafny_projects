@@ -1,37 +1,36 @@
 datatype Dir = Right | Left
 
 class Tape<Symbol> {
-  var init_symbol : Symbol;  // Const
+  const init_symbol : Symbol;
   var data : map<int, Symbol>;
   var pos : int;
 
   constructor Init(in_init_symbol : Symbol) {
-    init_symbol := in_init_symbol;
-    data := map[];
-    pos := 0;
+    this.init_symbol := in_init_symbol;
+    this.data := map[];
+    this.pos := 0;
   }
 
   method Read() returns (symb : Symbol) {
-    if pos in data {
-      return data[pos];
+    if this.pos in this.data {
+      return this.data[this.pos];
     } else {
-      return init_symbol;
+      return this.init_symbol;
     }
   }
 
   method Write(symb : Symbol)
     modifies this
   {
-    data := data[pos := symb];
+    this.data := this.data[this.pos := symb];
   }
 
   method Move(dir : Dir)
     modifies this
   {
-    if dir == Right {
-      pos := pos + 1;
-    } else {
-      pos := pos - 1;
+    match(dir) {
+      case Right => this.pos := this.pos + 1;
+      case Left  => this.pos := this.pos - 1;
     }
   }
 }
@@ -52,8 +51,8 @@ class TransTable<State(==), Symbol(==)> {
   method Lookup(state : State, symbol : Symbol)
     returns (trans : Transition<State, Symbol>) {
     var key := TransKey(state := state, symbol := symbol);
-    if key in data {
-      return data[key];
+    if key in this.data {
+      return this.data[key];
     } else {
       return Halt;
     }
@@ -69,44 +68,47 @@ datatype TM<State(==), Symbol(==)> = TM(
 
 class Simulator<State(==), Symbol(==)> {
   var tm : TM<State, Symbol>;
-  var tape : Tape<Symbol>;
+  const tape : Tape<Symbol>;
   var cur_state : State;
 
   var halted : bool;
   var step_num : nat;
 
   constructor Init(in_tm : TM<State, Symbol>) {
-    tm := in_tm;
-    tape := new Tape.Init(in_tm.init_symbol);
-    cur_state := in_tm.init_state;
-    halted := false;
-    step_num := 0;
+    this.tm := in_tm;
+    this.tape := new Tape.Init(in_tm.init_symbol);
+    this.cur_state := in_tm.init_state;
+    this.halted := false;
+    this.step_num := 0;
   }
 
   method Step()
-    modifies this, tape
+    modifies this, this.tape
+    ensures halted || step_num > old(step_num)
   {
-    if !halted {
-      var cur_symbol := tape.Read();
-      var trans := tm.trans_table.Lookup(
-        state := cur_state, symbol := cur_symbol);
+    if !this.halted {
+      var cur_symbol := this.tape.Read();
+      var trans := this.tm.trans_table.Lookup(
+        state := this.cur_state, symbol := cur_symbol);
       match(trans) {
-        case Halt => halted := true;
+        case Halt => this.halted := true;
         case Transition(symbol2write, new_state, dir) => {
-          tape.Write(trans.symbol);
-          cur_state := new_state;
-          tape.Move(dir);
+          this.tape.Write(symbol2write);
+          this.cur_state := new_state;
+          this.tape.Move(dir);
         }
       }
-
+      this.step_num := this.step_num + 1;
     }
   }
 
-  // method Seek(target_step_num : int)
-  //   modifies this, tape
-  // {
-  //   while !halted && step_num < target_step_num {
-  //     Step();
-  //   }
-  // }
+  method Seek(target_step_num : int)
+    modifies this, this.tape
+    ensures this.tape == old(this.tape)
+  {
+    while !this.halted && this.step_num < target_step_num {
+      this.Step();
+    }
+  }
 }
+
