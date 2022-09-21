@@ -33,13 +33,13 @@ function WriteTape(tape : Tape, pos : int, val : Symbol) : Tape {
 // TM Transition Table
 datatype TransKey = TransKey(state : State, symbol : Symbol)
 datatype Transition =
-  Transition(symbol : Symbol, state : StateOrHalt, dir : Dir)
+  Transition(symbol : Symbol, dir : Dir, state : StateOrHalt)
 type TM = map<TransKey, Transition>
 
 function LookupTrans(tm : TM, state : State, symbol : Symbol) : Transition {
   var key := TransKey(state, symbol);
   // Defaults to 1RH (Do we need defaults?)
-  if key in tm then tm[key] else Transition(1, Halt, Right)
+  if key in tm then tm[key] else Transition(1, Right, Halt)
 }
 
 // A TM is fully defined if it has a transition defined for every state x symbol pair and those
