@@ -18,6 +18,7 @@ abstract module TapeInterface {
       Read(Write(tape, pos, val), p2) == Read(tape, p2)
 }
 
+// Dafny internal error: https://github.com/dafny-lang/dafny/issues/2780
 // // Stack-allocated, non-mutable Tape representation convenient for
 // // specification
 // module Tape refines TapeInterface {
