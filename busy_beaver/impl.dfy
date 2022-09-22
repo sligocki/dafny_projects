@@ -6,6 +6,15 @@ lemma StepNHalt(tm : TM, start_config : Config, n : nat, m : nat)
   requires StepN(tm, start_config, n).state.Halt?
   requires m >= n
   ensures StepN(tm, start_config, m) == StepN(tm, start_config, n)
+{
+  var i := n;
+  while i < m
+    invariant i <= m
+    invariant StepN(tm, start_config, i) == StepN(tm, start_config, n)
+  {
+    i := i + 1;
+  }
+}
 
 method RunTM(tm : TM, start_config : Config, num_steps : nat) returns (end_config : Config)
   ensures end_config == StepN(tm, start_config, num_steps)

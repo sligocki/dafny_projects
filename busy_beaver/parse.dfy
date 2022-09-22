@@ -39,8 +39,10 @@ method ParseTM(tm_str : string) returns (tm : TM) {
       var trans := Transition(new_symbol, new_dir, new_state);
       tm := tm[TransKey(state, symbol) := trans];
       index := index + 3;
+      symbol := symbol + 1;
     }
     index := index + 1;
+    state := state + 1;
   }
 
   return tm;
