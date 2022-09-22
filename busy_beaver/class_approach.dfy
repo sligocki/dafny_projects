@@ -68,6 +68,8 @@ datatype TM<State(==), Symbol(==)> = TM(
 
 class Simulator<State(==), Symbol(==)> {
   var tm : TM<State, Symbol>;
+  // Note: const here means that the reference will never change.
+  // (The tape itself will be modified).
   const tape : Tape<Symbol>;
   var cur_state : State;
 

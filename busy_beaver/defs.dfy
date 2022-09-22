@@ -19,12 +19,12 @@ function method BlankTape(init_symbol : Symbol) : Tape {
   Tape(data := map[], init_symbol := init_symbol)
 }
 
-function ReadTape(tape : Tape, pos : int) : Symbol {
+function method ReadTape(tape : Tape, pos : int) : Symbol {
   if pos in tape.data then tape.data[pos] else tape.init_symbol
 }
 
 // Return a new Tape with update written.
-function WriteTape(tape : Tape, pos : int, val : Symbol) : Tape {
+function method WriteTape(tape : Tape, pos : int, val : Symbol) : Tape {
   Tape(data := tape.data[pos := val],
         init_symbol := tape.init_symbol)
 }
@@ -36,7 +36,7 @@ datatype Transition =
   Transition(symbol : Symbol, dir : Dir, state : StateOrHalt)
 type TM = map<TransKey, Transition>
 
-function LookupTrans(tm : TM, state : State, symbol : Symbol) : Transition {
+function method LookupTrans(tm : TM, state : State, symbol : Symbol) : Transition {
   var key := TransKey(state, symbol);
   // Defaults to 1RH (Do we need defaults?)
   if key in tm then tm[key] else Transition(1, Right, Halt)
@@ -70,7 +70,7 @@ const InitConfig : Config :=
     step_num := 0
   )
 
-function Step(tm : TM, config : Config) : Config
+function method Step(tm : TM, config : Config) : Config
   requires !config.state.Halt?
 {
   var cur_symbol := ReadTape(config.tape, config.pos);
@@ -89,11 +89,16 @@ function Step(tm : TM, config : Config) : Config
 function StepN(tm : TM, config : Config, num_steps : nat) : Config
   decreases num_steps
 {
-  if (config.state.Halt? || num_steps == 0)
+  if num_steps == 0
   then
     config
   else
-    StepN(tm, Step(tm, config), num_steps - 1)
+    var pre_config := StepN(tm, config, num_steps - 1);
+    if pre_config.state.Halt?
+    then
+      pre_config
+    else
+      Step(tm, pre_config)
 }
 
 // A TM is a halting TM if, after some number of steps starting from the initial config, it halts.
