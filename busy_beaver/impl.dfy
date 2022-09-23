@@ -1,6 +1,7 @@
+// Implementation of efficient methods mirroring specification in defs.dfy
 include "defs.dfy"
 
-// Implementation of efficient methods mirroring specification in defs.dfy
+import opened TMDefsNat
 
 lemma StepNHalt(tm : TM, start_config : Config, n : nat, m : nat)
   requires StepN(tm, start_config, n).state.Halt?

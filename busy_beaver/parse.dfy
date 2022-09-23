@@ -1,5 +1,8 @@
 include "defs.dfy"
 
+import opened TMSpecNat
+import opened TMDefsNat
+
 method ParseSymbol(symb_char : char) returns (symbol : Symbol) {
   if symb_char < '0' {
     return 0;  // Avoid
