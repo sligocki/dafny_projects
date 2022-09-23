@@ -47,3 +47,23 @@ method ParseTM(tm_str : string) returns (tm : TM) {
 
   return tm;
 }
+
+
+// Some functions to reverse parsing.
+function method StateToString(state : StateOrHalt) : string {
+  match state {
+    case Halt => "Z"
+    case RunState(state) => 
+      // TODO: 20 is a little arbitrary here.
+      if state < 20
+        then [(state as char) + 'A']
+        else "?"
+  }
+}
+
+function method DirToString(dir : Dir) : string {
+  match dir {
+    case Left => "L"
+    case Right => "R"
+  }
+}
