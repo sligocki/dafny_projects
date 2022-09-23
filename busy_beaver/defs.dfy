@@ -10,6 +10,13 @@ abstract module TMSpecAbstract {
 
   datatype Dir = Left | Right
   datatype StateOrHalt = RunState(state : State) | Halt
+
+  // TM Transition Table
+  datatype Transition =
+    Transition(symbol : Symbol, dir : Dir, state : StateOrHalt)
+  type TM
+
+  function method LookupTrans(tm : TM, state : State, symbol : Symbol) : Transition
 }
 
 abstract module TMDefsAbstract {
@@ -26,19 +33,6 @@ abstract module TMDefsAbstract {
   // Return a new Tape with update written.
   function method WriteTape(tape : Tape, pos : int, val : Symbol) : Tape {
     tape[pos := val]
-  }
-
-
-  // TM Transition Table
-  datatype TransKey = TransKey(state : State, symbol : Symbol)
-  datatype Transition =
-    Transition(symbol : Symbol, dir : Dir, state : StateOrHalt)
-  type TM = map<TransKey, Transition>
-
-  function method LookupTrans(tm : TM, state : State, symbol : Symbol) : Transition {
-    var key := TransKey(state, symbol);
-    // Defaults to 0RH. We don't intend to use default, but allow it for simplicity.
-    if key in tm then tm[key] else Transition(BlankSymbol, Right, Halt)
   }
 
 
@@ -102,10 +96,15 @@ module TMSpecNat refines TMSpecAbstract {
   type State = nat
   const BlankSymbol : Symbol := 0
   const InitState : State := 0
-}
 
-module TMDefsNat refines TMDefsAbstract {
-  import opened TMSpec = TMSpecNat
+  datatype TransKey = TransKey(state : State, symbol : Symbol)
+  type TM = map<TransKey, Transition>
+
+  function method LookupTrans(tm : TM, state : State, symbol : Symbol) : Transition {
+    var key := TransKey(state, symbol);
+    // Defaults to 0RH. We don't intend to use default, but allow it for simplicity.
+    if key in tm then tm[key] else Transition(BlankSymbol, Right, Halt)
+  }
 
   // A TM is fully defined if it has a transition defined for every state x symbol pair and those
   // transitions are all to valid states and write valid symbols.
@@ -117,4 +116,8 @@ module TMDefsNat refines TMDefsAbstract {
           (trans.state.Halt? || trans.state.state < num_states) &&
           trans.symbol < num_symbols
   }
+}
+
+module TMDefsNat refines TMDefsAbstract {
+  import opened TMSpec = TMSpecNat
 }
