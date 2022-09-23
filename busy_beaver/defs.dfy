@@ -9,9 +9,14 @@ abstract module TMSpecAbstract {
   const InitState : State
 
   datatype Dir = Left | Right
-  datatype StateOrHalt = RunState(state : State) | Halt
+  function method OtherDir(dir : Dir) : Dir {
+    match dir
+      case Left => Right
+      case Right => Left
+  }
 
   // TM Transition Table
+  datatype StateOrHalt = RunState(state : State) | Halt
   datatype Transition =
     Transition(symbol : Symbol, dir : Dir, state : StateOrHalt)
   type TM
