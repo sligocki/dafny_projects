@@ -17,36 +17,41 @@ method SimTM(tm : TM, tape_size : nat, max_steps : nat)
   returns (final_config : SeqConfig)
 {
   var tape := new Symbol[tape_size];
-  var pos := tape_size / 2;
+  var start_index := tape_size / 2;
+  var index := start_index;
   var state : StateOrHalt := RunState(InitState);
   var step_num := 0;
 
-  while step_num < max_steps && !state.Halt? && 0 <= pos < tape.Length {
-    var cur_symbol := tape[pos];
+  while step_num < max_steps && !state.Halt? && 0 <= index < tape.Length {
+    var cur_symbol := tape[index];
     var trans := LookupTrans(tm, state.state, cur_symbol);
 
     // Write
-    tape[pos] := trans.symbol;
-    pos := match(trans.dir) {
-      case Right => pos + 1
-      case Left  => pos - 1
+    tape[index] := trans.symbol;
+    index := match(trans.dir) {
+      case Right => index + 1
+      case Left  => index - 1
     };
     state := trans.state;
     step_num := step_num + 1;
   }
-  return SeqConfig(tape[..], pos, state, step_num);
+  return SeqConfig(tape[..], index - start_index, state, step_num);
+}
+
+method ScoreTape(tape : seq<Symbol>) returns (score : nat) {
+  var total : nat := 0;
+  for i := 0 to |tape| {
+    total := total + ScoreSymbol(tape[i]);
+  }
+  return total;
 }
 
 
 // Testing
 method PrintConfig(config : SeqConfig) {
-  var cur_symbol := if 0 <= config.pos < |config.tape|
-    then config.tape[config.pos]
-    else BlankSymbol;
-  print config.step_num,
-        " State: ", StateToString(config.state),
-        " Symbol: ", cur_symbol,
-        " Pos: ", config.pos, "\n";
+  var score := ScoreTape(config.tape);
+  print "Steps: ", config.step_num, " Score: ", score,
+        " State: ", StateToString(config.state), " Pos: ", config.pos, "\n";
 }
 
 method QuietSimTM(tm_str : string, tape_size : nat, num_steps : nat) {
