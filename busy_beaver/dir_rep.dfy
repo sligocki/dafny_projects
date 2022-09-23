@@ -74,6 +74,19 @@ abstract module DirRepAbstract {
     exists n : nat :: StepN(tm, InitConfig, n).state.Halt?
   }
 
+  function method ScoreHalfTape(half_tape : List<Symbol>) : nat {
+    match half_tape {
+      case Nil => 0
+      case Cons(head, tail) => ScoreSymbol(head) + ScoreHalfTape(tail)
+    }
+  }
+
+  function method ScoreTape(tape : Tape) : nat {
+    var left_score := if Left in tape then ScoreHalfTape(tape[Left]) else 0;
+    var right_score := if Right in tape then ScoreHalfTape(tape[Right]) else 0;
+    left_score + right_score
+  }
+
 
   // TODO: Proof of equivalence to the representation in "defs.dfy"
 
@@ -125,7 +138,9 @@ import opened DirRepNat
 method QuietSimTM(tm_str : string, num_steps : nat) {
   var tm := ParseTM(tm_str);
   var config := RunTM(tm, InitConfig, num_steps);
-  print "Steps: ", config.step_num, " State: ", StateToString(config.state), "\n";
+  var score := ScoreTape(config.tape);
+  print "Steps: ", config.step_num, " Score: ", score,
+        " State: ", StateToString(config.state), "\n";
 }
 
 method Main() {
@@ -136,6 +151,7 @@ method Main() {
   QuietSimTM("1RB1LC_1RC1RB_1RD0LE_1LA1LD_1RZ0LA",      10_000);
   QuietSimTM("1RB1LC_1RC1RB_1RD0LE_1LA1LD_1RZ0LA",     100_000);
   QuietSimTM("1RB1LC_1RC1RB_1RD0LE_1LA1LD_1RZ0LA",   1_000_000);
-  QuietSimTM("1RB1LC_1RC1RB_1RD0LE_1LA1LD_1RZ0LA",  10_000_000);
-  QuietSimTM("1RB1LC_1RC1RB_1RD0LE_1LA1LD_1RZ0LA", 100_000_000);
+  // This is *very* slow. 2min to run 1M steps, so we don't try any further.
+  // QuietSimTM("1RB1LC_1RC1RB_1RD0LE_1LA1LD_1RZ0LA",  10_000_000);
+  // QuietSimTM("1RB1LC_1RC1RB_1RD0LE_1LA1LD_1RZ0LA", 100_000_000);
 }

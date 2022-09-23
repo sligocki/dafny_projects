@@ -2,10 +2,9 @@ include "impl.dfy"
 include "parse.dfy"
 
 method PrintConfig(config : Config) {
-  print config.step_num,
-        " State: ", StateToString(config.state),
-        " Symbol: ", ReadTape(config.tape, config.pos),
-        " Pos: ", config.pos, "\n";
+  var score := ScoreTape(config.tape);
+  print "Steps: ", config.step_num, " Score: ", score,
+        " State: ", StateToString(config.state), " Pos: ", config.pos, "\n";
 }
 
 method VerboseSimTM(tm_str : string, num_steps : nat) {
@@ -33,7 +32,8 @@ method QuietSimTM(tm_str : string, num_steps : nat) {
 
 method Main() {
   // 4x2 Champion
-  VerboseSimTM("1RB1LB_1LA0LC_1RZ1LD_1RD0RA", 1000);
+  // VerboseSimTM("1RB1LB_1LA0LC_1RZ1LD_1RD0RA", 1000);
+  QuietSimTM("1RB1LB_1LA0LC_1RZ1LD_1RD0RA", 1000);
   // 5x2 Champion
   QuietSimTM("1RB1LC_1RC1RB_1RD0LE_1LA1LD_1RZ0LA",       1_000);
   QuietSimTM("1RB1LC_1RC1RB_1RD0LE_1LA1LD_1RZ0LA",      10_000);

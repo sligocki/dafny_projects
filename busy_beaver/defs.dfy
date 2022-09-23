@@ -3,8 +3,8 @@
 // Ex: State, Symbol : nat or datatype Symbol = S0 | S1 or macro machine states
 // and symbols.
 abstract module TMSpecAbstract {
-  type Symbol
-  type State
+  type Symbol(==)
+  type State(==)
   const BlankSymbol : Symbol
   const InitState : State
 
@@ -22,6 +22,15 @@ abstract module TMSpecAbstract {
   type TM
 
   function method LookupTrans(tm : TM, state : State, symbol : Symbol) : Transition
+
+  // Sigma "score" for each symbol on tape.
+  // TODO: Move definition to TMSpecNat so that we can generalize to Macro Machine
+  // where score could be different.
+  function method ScoreSymbol(symbol : Symbol) : nat {
+    if symbol == BlankSymbol
+      then 0
+      else 1
+  }
 }
 
 abstract module TMDefsAbstract {
@@ -92,6 +101,21 @@ abstract module TMDefsAbstract {
   predicate TMHalts(tm: TM) {
     exists n : nat :: StepN(tm, InitConfig, n).state.Halt?
   }
+
+
+  // Define Sigma "score" for TMs (# non-blank symbols on tape).
+  // TODO: This is not correct.
+  method ScoreTape(tape : Tape) returns (score : nat) {
+    var total : nat := 0;
+    var items := tape.Items;
+    while items != {} {
+      var item :| item in items;
+      total := total + ScoreSymbol(item.1);
+      // print "Walrus ", item.0, " => ", item.1, " ", ScoreSymbol(item.1), " ", total, "\n";
+      items := items - {item};
+    }
+    return total;
+  }
 }
 
 
@@ -125,4 +149,10 @@ module TMSpecNat refines TMSpecAbstract {
 
 module TMDefsNat refines TMDefsAbstract {
   import opened TMSpec = TMSpecNat
+
+  // function method ScoreSymbol(symbol : Symbol) : nat {
+  //   if symbol == BlankSymbol
+  //     then 0
+  //     else 1
+  // }
 }
