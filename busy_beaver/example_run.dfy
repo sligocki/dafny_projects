@@ -4,11 +4,11 @@ include "parse.dfy"
 method PrintConfig(config : Config) {
   var score := ScoreTape(config.tape);
   print "Steps: ", config.step_num, " Score: ", score,
-        " State: ", StateToString(config.state), " Pos: ", config.pos, "\n";
+        " State: ", Parse.StateToString(config.state), " Pos: ", config.pos, "\n";
 }
 
 method VerboseSimTM(tm_str : string, num_steps : nat) {
-  var tm := ParseTM(tm_str);
+  var tm := Parse.ParseTM(tm_str);
   var i := 0;
   var config := InitConfig;
   while i < num_steps && !config.state.Halt?
@@ -17,7 +17,8 @@ method VerboseSimTM(tm_str : string, num_steps : nat) {
   {
     var cur_symbol := ReadTape(config.tape, config.pos);
     var trans := LookupTrans(tm, config.state.state, cur_symbol);
-    print StateToString(config.state), cur_symbol, "->", trans.symbol, DirToString(trans.dir), StateToString(trans.state), "\n";
+    print Parse.StateToString(config.state), cur_symbol, "->",
+      trans.symbol, Parse.DirToString(trans.dir), Parse.StateToString(trans.state), "\n";
     config := Step(tm, config);
     PrintConfig(config);
     i := i + 1;
@@ -25,7 +26,7 @@ method VerboseSimTM(tm_str : string, num_steps : nat) {
 }
 
 method QuietSimTM(tm_str : string, num_steps : nat) {
-  var tm := ParseTM(tm_str);
+  var tm := Parse.ParseTM(tm_str);
   var config := RunTM(tm, InitConfig, num_steps);
   PrintConfig(config);
 }

@@ -144,11 +144,11 @@ module DirRepNat refines DirRepAbstract {
 import opened DirRepNat
 
 method QuietSimTM(tm_str : string, num_steps : nat) {
-  var tm := ParseTM(tm_str);
+  var tm := Parse.ParseTM(tm_str);
   var config := RunTM(tm, InitConfig, num_steps);
   var score := ScoreTape(config.tape);
   print "Steps: ", config.step_num, " Score: ", score,
-        " State: ", StateToString(config.state), "\n";
+        " State: ", Parse.StateToString(config.state), "\n";
 }
 
 method Main() {

@@ -5,6 +5,7 @@
 include "defs.dfy"
 include "parse.dfy"  // Used for testing below.
 
+import opened TMSpecNat
 
 datatype SeqConfig = SeqConfig(
   tape : seq<Symbol>,
@@ -51,11 +52,11 @@ method ScoreTape(tape : seq<Symbol>) returns (score : nat) {
 method PrintConfig(config : SeqConfig) {
   var score := ScoreTape(config.tape);
   print "Steps: ", config.step_num, " Score: ", score,
-        " State: ", StateToString(config.state), " Pos: ", config.pos, "\n";
+        " State: ", Parse.StateToString(config.state), " Pos: ", config.pos, "\n";
 }
 
 method QuietSimTM(tm_str : string, tape_size : nat, num_steps : nat) {
-  var tm := ParseTM(tm_str);
+  var tm := Parse.ParseTM(tm_str);
   var config := SimTM(tm, tape_size, num_steps);
   PrintConfig(config);
 }
