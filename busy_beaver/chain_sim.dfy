@@ -2,7 +2,7 @@
 // in one step.
 
 include "tm_spec_gen.dfy"
-include "parse.dfy"  // Used for testing below.
+include "parse.dfy"
 
 abstract module ChainSimAbstract {
   import opened TMSpec : TMSpecGenAbstract
