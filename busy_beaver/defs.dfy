@@ -24,8 +24,6 @@ abstract module TMSpecAbstract {
   function method LookupTrans(tm : TM, state : State, symbol : Symbol) : Transition
 
   // Sigma "score" for each symbol on tape.
-  // TODO: Move definition to TMSpecNat so that we can generalize to Macro Machine
-  // where score could be different.
   function method ScoreSymbol(symbol : Symbol) : nat {
     if symbol == BlankSymbol
       then 0
@@ -149,10 +147,4 @@ module TMSpecNat refines TMSpecAbstract {
 
 module TMDefsNat refines TMDefsAbstract {
   import opened TMSpec = TMSpecNat
-
-  // function method ScoreSymbol(symbol : Symbol) : nat {
-  //   if symbol == BlankSymbol
-  //     then 0
-  //     else 1
-  // }
 }
