@@ -6,6 +6,7 @@ include "parse.dfy"  // Used for testing below.
 
 abstract module ChainSimAbstract {
   import opened TMSpec : TMSpecGenAbstract
+  import Parse
 
   // Repeated symbols
   datatype RepSymbol = RepSymbol(symbol : Symbol, num_reps : nat)
@@ -181,79 +182,33 @@ abstract module ChainSimAbstract {
   }
 
 
+  // Printing support.
+  method PrintSemiTape(semi_tape : SemiTape) {
+    if |semi_tape| == 0 {
+      print "0^inf";
+    } else {
+      var rep_symb := Head(semi_tape);
+      print rep_symb.symbol, "^", rep_symb.num_reps, " ";
+      PrintSemiTape(Tail(semi_tape));
+    }
+  }
+
+  method PrintConfig(config : Config) {
+    match config {
+      case InfiniteConfig =>
+        print "TM Infinite Chain Step\n";
+      case Config(_, _, _, _) =>
+        var score := ScoreConfig(config);
+        print "Halted: ", TMSpec.IsHalt?(config.state), " Steps: ", config.base_step_count, " Score: ", score,
+              " State: ", config.state, "\n";
+    }
+  }
+
+
   // TODO: Proof of equivalence to the representation in "defs.dfy"
 }
 
 
 module ChainSimNat refines ChainSimAbstract {
   import opened TMSpec = TMSpecGenNat
-}
-
-
-// Tests
-import opened ChainSimNat
-
-method PrintSemiTape(semi_tape : SemiTape) {
-  if |semi_tape| == 0 {
-    print "0^inf";
-  } else {
-    var rep_symb := Head(semi_tape);
-    print rep_symb.symbol, "^", rep_symb.num_reps, " ";
-    PrintSemiTape(Tail(semi_tape));
-  }
-}
-
-method PrintConfig(config : Config) {
-  match config {
-    case InfiniteConfig =>
-      print "TM Infinite Chain Step\n";
-    case Config(_, _, _, _) =>
-      var score := ScoreConfig(config);
-      print "Halted: ", TMSpec.IsHalt?(config.state), " Steps: ", config.base_step_count, " Score: ", score,
-            " State: ", Parse.StateToString(config.state), "\n";
-  }
-}
-
-method VerboseSimTM(tm_str : string, num_sim_steps : nat) {
-  var tm := Parse.ParseTM(tm_str);
-  var i := 0;
-  var config := InitConfig(tm);
-  while i < num_sim_steps && config.Config? && !TMSpec.IsHalt?(config.state)
-    invariant 0 <= i <= num_sim_steps
-    decreases num_sim_steps - i
-  {
-    config := Step(tm, config);
-    PrintConfig(config);
-    if config.Config? {
-      print "Tape:  Left: ";
-      if TMSpec.Left in config.tape.data {
-        PrintSemiTape(config.tape.data[TMSpec.Left]);
-      }
-      print "  /  Right: ";
-      if TMSpec.Right in config.tape.data {
-        PrintSemiTape(config.tape.data[TMSpec.Right]);
-      }
-      print "\n";
-    }
-    i := i + 1;
-  }
-}
-
-method QuietSimTM(tm_str : string, num_sim_steps : nat) {
-  var tm := Parse.ParseTM(tm_str);
-  var config := RunTM(tm, InitConfig(tm), num_sim_steps);
-  PrintConfig(config);
-}
-
-method Main() {
-  // 4x2 Champion
-  // VerboseSimTM("1RB1LB_1LA0LC_1RZ1LD_1RD0RA", 108);
-  QuietSimTM("1RB1LB_1LA0LC_1RZ1LD_1RD0RA", 1000);
-  // 5x2 Champion
-  QuietSimTM("1RB1LC_1RC1RB_1RD0LE_1LA1LD_1RZ0LA",       1_000);
-  QuietSimTM("1RB1LC_1RC1RB_1RD0LE_1LA1LD_1RZ0LA",      10_000);
-  QuietSimTM("1RB1LC_1RC1RB_1RD0LE_1LA1LD_1RZ0LA",     100_000);
-  QuietSimTM("1RB1LC_1RC1RB_1RD0LE_1LA1LD_1RZ0LA",   1_000_000);
-  QuietSimTM("1RB1LC_1RC1RB_1RD0LE_1LA1LD_1RZ0LA",  10_000_000);
-  QuietSimTM("1RB1LC_1RC1RB_1RD0LE_1LA1LD_1RZ0LA", 100_000_000);
 }
