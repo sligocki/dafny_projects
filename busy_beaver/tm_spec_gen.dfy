@@ -11,6 +11,8 @@ abstract module TMSpecGenAbstract {
   type Symbol(==)
   type State(==)
 
+  function method IsHalt?(state : State) : bool
+
   datatype Dir = Left | Right
   function method OtherDir(dir : Dir) : Dir {
     match dir
@@ -26,11 +28,11 @@ abstract module TMSpecGenAbstract {
   // add num_base_steps, etc.
   datatype Transition =
     | InfiniteTrans  // TODO: Add parameters
-    | HaltTrans(symbol : Symbol, num_base_steps : nat)
-    | RunningTrans(symbol : Symbol, dir : Dir, state : State, num_base_steps : nat)
+    | Transition(symbol : Symbol, dir : Dir, state : State, num_base_steps : nat)
 
   method LookupTrans(tm : TM, state : State, symbol : Symbol, dir : Dir)
     returns (trans : Transition)
+    requires !IsHalt?(state)
 
 
   // Scoring
@@ -42,14 +44,17 @@ module TMSpecGenNat refines TMSpecGenAbstract {
   import TMSpecNat
 
   type Symbol = TMSpecNat.Symbol
-  type State = TMSpecNat.State
+  type State = TMSpecNat.StateOrHalt
   type TM = TMSpecNat.TM
 
+  function method IsHalt?(state : State) : bool {
+    state.Halt?
+  }
   function method BlankSymbol(tm : TM) : Symbol {
     TMSpecNat.BlankSymbol
   }
   function method InitState(tm : TM) : State {
-    TMSpecNat.InitState
+    TMSpecNat.RunState(TMSpecNat.InitState)
   }
 
   // TODO: ... there must be a better way!
@@ -62,13 +67,9 @@ module TMSpecGenNat refines TMSpecGenAbstract {
   method LookupTrans(tm : TM, state : State, symbol : Symbol, dir : Dir)
     returns (trans : Transition)
   {
-    var base_trans := TMSpecNat.LookupTrans(tm, state, symbol);
-    if base_trans.state.Halt? {
-      return HaltTrans(base_trans.symbol, 1);
-    } else {
-      return RunningTrans(base_trans.symbol, Dir2Dir(base_trans.dir),
-                          base_trans.state.state, 1);
-    }
+    var base_trans := TMSpecNat.LookupTrans(tm, state.state, symbol);
+    return Transition(base_trans.symbol, Dir2Dir(base_trans.dir),
+                      base_trans.state, 1);
   }
 
 

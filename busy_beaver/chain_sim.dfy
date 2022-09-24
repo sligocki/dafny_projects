@@ -73,13 +73,7 @@ abstract module ChainSimAbstract {
   // TM Simulator
   datatype Config =
     | InfiniteConfig
-    | HaltedConfig(
-        tape : Tape,
-        dir : Dir,
-        state : State,
-        base_step_count : nat
-      )
-    | RunningConfig(
+    | Config(
         tape : Tape,
         dir : Dir,
         state : State,
@@ -87,7 +81,7 @@ abstract module ChainSimAbstract {
       )
 
   function method InitConfig(tm : TM) : Config {
-    RunningConfig(
+    Config(
       tape := BlankTape(tm),
       dir := Right,
       state := InitState(tm),
@@ -120,7 +114,7 @@ abstract module ChainSimAbstract {
   }
 
   method Step(tm : TM, config : Config) returns (end_config : Config)
-    requires config.RunningConfig?
+    requires config.Config? && !IsHalt?(config.state)
   {
     var cur_state := config.state;
     var cur_symbol := PeekTape(config.tape, config.dir);
@@ -129,18 +123,8 @@ abstract module ChainSimAbstract {
     if trans.InfiniteTrans? {
       return InfiniteConfig;
     }
-    if trans.HaltTrans? {
-      // TODO: I don't want to reproduce everything below ... maybe we should collapse
-      // HaltedConfig and RunningConfig back into one type ...
-      return HaltedConfig(
-        tape := config.tape,  // TODO: Wrong, needs to be updated ...
-        dir := Right,
-        state := InitState(tm),
-        base_step_count := config.base_step_count + trans.num_base_steps
-      );
-    }
 
-    assert trans.RunningTrans?;
+    assert trans.Transition?;
     var chain_result :=
       if trans.state == cur_state && trans.dir == config.dir
         then ChainStep(config.tape, trans.dir, trans.symbol)
@@ -153,7 +137,7 @@ abstract module ChainSimAbstract {
         return InfiniteConfig;
       case ChainStepResult(new_tape, num_chain_steps) =>
         var num_base_steps := num_chain_steps * trans.num_base_steps;
-        return RunningConfig(
+        return Config(
           tape := new_tape,
           dir := trans.dir,
           state := trans.state,
@@ -167,7 +151,7 @@ abstract module ChainSimAbstract {
   {
     var i := 0;
     var cur_config := start_config;
-    while i < num_sim_steps && cur_config.RunningConfig?
+    while i < num_sim_steps && cur_config.Config? && !IsHalt?(cur_config.state)
       invariant 0 <= i <= num_sim_steps
     {
       cur_config := Step(tm, cur_config);
@@ -189,13 +173,7 @@ abstract module ChainSimAbstract {
   function method ScoreConfig(config : Config) : nat {
     match config
       case InfiniteConfig => 0
-      case HaltedConfig(_, _, _, _) => 
-        var tape := config.tape;
-        var left_score := if Left in tape.data then ScoreHalfTape(tape.data[Left]) else 0;
-        var right_score := if Right in tape.data then ScoreHalfTape(tape.data[Right]) else 0;
-        left_score + right_score + ScoreState(config.state)
-      // TODO: Avoid redundancy here ...
-      case RunningConfig(_, _, _, _) => 
+      case Config(_, _, _, _) => 
         var tape := config.tape;
         var left_score := if Left in tape.data then ScoreHalfTape(tape.data[Left]) else 0;
         var right_score := if Right in tape.data then ScoreHalfTape(tape.data[Right]) else 0;
@@ -229,14 +207,10 @@ method PrintConfig(config : Config) {
   match config {
     case InfiniteConfig =>
       print "TM Infinite Chain Step\n";
-    case HaltedConfig(_, _, _, _) =>
+    case Config(_, _, _, _) =>
       var score := ScoreConfig(config);
-      print "Halted: Steps: ", config.base_step_count, " Score: ", score,
-            " State: ", Parse.StateToString(TMSpecNat.RunState(config.state)), "\n";
-    case RunningConfig(_, _, _, _) =>
-      var score := ScoreConfig(config);
-      print "Running: Steps: ", config.base_step_count, " Score: ", score,
-            " State: ", Parse.StateToString(TMSpecNat.RunState(config.state)), "\n";
+      print "Halted: ", TMSpec.IsHalt?(config.state), " Steps: ", config.base_step_count, " Score: ", score,
+            " State: ", Parse.StateToString(config.state), "\n";
   }
 }
 
@@ -244,13 +218,13 @@ method VerboseSimTM(tm_str : string, num_sim_steps : nat) {
   var tm := Parse.ParseTM(tm_str);
   var i := 0;
   var config := InitConfig(tm);
-  while i < num_sim_steps && config.RunningConfig?
+  while i < num_sim_steps && config.Config? && !TMSpec.IsHalt?(config.state)
     invariant 0 <= i <= num_sim_steps
     decreases num_sim_steps - i
   {
     config := Step(tm, config);
     PrintConfig(config);
-    if config.RunningConfig? {
+    if config.Config? {
       print "Tape:  Left: ";
       if TMSpec.Left in config.tape.data {
         PrintSemiTape(config.tape.data[TMSpec.Left]);
