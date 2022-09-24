@@ -23,6 +23,9 @@ abstract module TMSpecGenAbstract {
   type TM
   function method BlankSymbol(tm : TM) : Symbol
   function method InitState(tm : TM) : State
+  // TODO: We don't necessarily only have one halt state ...
+  function method HaltState(tm : TM) : State
+    ensures IsHalt?(HaltState(tm))
 
   // Transitions have been generalized to allow Infinite transitions,
   // add num_base_steps, etc.
@@ -55,6 +58,9 @@ module TMSpecGenNat refines TMSpecGenAbstract {
   }
   function method InitState(tm : TM) : State {
     TMSpecNat.RunState(TMSpecNat.InitState)
+  }
+  function method HaltState(tm : TM) : State {
+    TMSpecNat.Halt
   }
 
   // TODO: ... there must be a better way!
