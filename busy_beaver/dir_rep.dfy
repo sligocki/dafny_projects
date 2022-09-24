@@ -101,9 +101,9 @@ abstract module DirRepAbstract {
 
   // Iteration implementation of StepN.
   lemma StepNHalt(tm : TM, start_config : Config, n : nat, m : nat)
-  requires StepN(tm, start_config, n).state.Halt?
-  requires m >= n
-  ensures StepN(tm, start_config, m) == StepN(tm, start_config, n)
+    requires StepN(tm, start_config, n).state.Halt?
+    requires m >= n
+    ensures StepN(tm, start_config, m) == StepN(tm, start_config, n)
   {
     var i := n;
     while i < m
