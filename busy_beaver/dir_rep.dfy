@@ -7,19 +7,28 @@ include "parse.dfy"  // Used for testing below.
 abstract module DirRepAbstract {
   import opened TMSpec : TMSpecAbstract
 
-  datatype List<T> = Nil | Cons(head : T, tail : List<T>)
+  type SemiTape = seq<Symbol>
+  function method Head(s : SemiTape) : Symbol requires |s| != 0 {
+    s[0]
+  }
+  function method Tail(s : SemiTape) : SemiTape requires |s| != 0 {
+    s[1..]
+  }
+  function method Cons(head : Symbol, tail : SemiTape) : SemiTape {
+    [head] + tail
+  }
 
-  type Tape = map<Dir, List<Symbol>>
-  const BlankTape : Tape := map[Left := Nil, Right := Nil]
+  type Tape = map<Dir, SemiTape>
+  const BlankTape : Tape := map[Left := [], Right := []]
 
   function method PopTape(tape : Tape, dir : Dir) : (Tape, Symbol) {
-    if dir !in tape || tape[dir].Nil?
+    if dir !in tape || |tape[dir]| == 0
       then (tape, BlankSymbol)
-      else (tape[dir := tape[dir].tail], tape[dir].head)
+      else (tape[dir := Tail(tape[dir])], Head(tape[dir]))
   }
 
   function method PushTape(tape : Tape, val : Symbol, dir : Dir) : Tape {
-    var old_half_tape := if dir in tape then tape[dir] else Nil;
+    var old_half_tape := if dir in tape then tape[dir] else [];
     var updated_half_tape := Cons(val, old_half_tape);
     tape[dir := updated_half_tape]
   }
@@ -74,11 +83,10 @@ abstract module DirRepAbstract {
     exists n : nat :: StepN(tm, InitConfig, n).state.Halt?
   }
 
-  function method ScoreHalfTape(half_tape : List<Symbol>) : nat {
-    match half_tape {
-      case Nil => 0
-      case Cons(head, tail) => ScoreSymbol(head) + ScoreHalfTape(tail)
-    }
+  function method ScoreHalfTape(semi_tape : SemiTape) : nat {
+    if |semi_tape| == 0
+      then 0
+      else ScoreSymbol(Head(semi_tape)) + ScoreHalfTape(Tail(semi_tape))
   }
 
   function method ScoreTape(tape : Tape) : nat {
@@ -151,7 +159,7 @@ method Main() {
   QuietSimTM("1RB1LC_1RC1RB_1RD0LE_1LA1LD_1RZ0LA",      10_000);
   QuietSimTM("1RB1LC_1RC1RB_1RD0LE_1LA1LD_1RZ0LA",     100_000);
   QuietSimTM("1RB1LC_1RC1RB_1RD0LE_1LA1LD_1RZ0LA",   1_000_000);
-  // This is *very* slow. 2min to run 1M steps, so we don't try any further.
-  // QuietSimTM("1RB1LC_1RC1RB_1RD0LE_1LA1LD_1RZ0LA",  10_000_000);
+  QuietSimTM("1RB1LC_1RC1RB_1RD0LE_1LA1LD_1RZ0LA",  10_000_000);
+  // This is a little slow. 2min to run 10M steps, so we don't try any further.
   // QuietSimTM("1RB1LC_1RC1RB_1RD0LE_1LA1LD_1RZ0LA", 100_000_000);
 }
