@@ -1,6 +1,7 @@
 include "chain_sim.dfy"
 
 // Tests
+import opened DirSpec
 import opened ChainSimNat
 
 method VerboseSimTM(tm_str : string, num_sim_steps : nat) {
@@ -15,13 +16,9 @@ method VerboseSimTM(tm_str : string, num_sim_steps : nat) {
     PrintConfig(config);
     if config.Config? {
       print "Tape:  Left: ";
-      if TMSpec.Left in config.tape.data {
-        PrintSemiTape(config.tape.data[TMSpec.Left]);
-      }
+      if Left in config.tape.data { PrintSemiTape(config.tape.data[Left]); }
       print "  /  Right: ";
-      if TMSpec.Right in config.tape.data {
-        PrintSemiTape(config.tape.data[TMSpec.Right]);
-      }
+      if Right in config.tape.data { PrintSemiTape(config.tape.data[Right]); }
       print "\n";
     }
     i := i + 1;

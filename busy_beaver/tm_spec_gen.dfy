@@ -8,17 +8,12 @@
 include "defs.dfy"
 
 abstract module TMSpecGenAbstract {
+  import opened DirSpec
+
   type Symbol(==)
   type State(==)
 
   function method IsHalt?(state : State) : bool
-
-  datatype Dir = Left | Right
-  function method OtherDir(dir : Dir) : Dir {
-    match dir
-      case Left => Right
-      case Right => Left
-  }
 
   type TM
   function method BlankSymbol(tm : TM) : Symbol
@@ -30,8 +25,13 @@ abstract module TMSpecGenAbstract {
   // Transitions have been generalized to allow Infinite transitions,
   // add num_base_steps, etc.
   datatype Transition =
-    | InfiniteTrans  // TODO: Add parameters
+    // "Normal" transition (write symbol, move, change state)
     | Transition(symbol : Symbol, dir : Dir, state : State, num_base_steps : nat)
+    // Infinite transition means that we detected the machine was infitite while
+    // evaluating this transition (Ex: Inf repeat inside macro block).
+    | InfiniteTrans
+    // We gave up trying to simulate this transition (Ex: > max sim steps).
+    | GaveUpTrans 
 
   method LookupTrans(tm : TM, state : State, symbol : Symbol, dir : Dir)
     returns (trans : Transition)
@@ -63,18 +63,11 @@ module TMSpecGenNat refines TMSpecGenAbstract {
     TMSpecNat.Halt
   }
 
-  // TODO: ... there must be a better way!
-  function method Dir2Dir(dir : TMSpecNat.Dir) : Dir {
-    match dir
-      case Left => Left
-      case Right => Right
-  }
-
   method LookupTrans(tm : TM, state : State, symbol : Symbol, dir : Dir)
     returns (trans : Transition)
   {
     var base_trans := TMSpecNat.LookupTrans(tm, state.state, symbol);
-    return Transition(base_trans.symbol, Dir2Dir(base_trans.dir),
+    return Transition(base_trans.symbol, base_trans.dir,
                       base_trans.state, 1);
   }
 

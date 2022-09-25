@@ -4,6 +4,8 @@ include "tm_spec_gen.dfy"
 include "chain_sim.dfy"
 include "parse.dfy"  // Used for testing below.
 
+import opened DirSpec
+
 abstract module BlockMacroSpecAbstract refines TMSpecGenAbstract {
   import BaseSpec : TMSpecGenAbstract
 
@@ -19,13 +21,16 @@ abstract module BlockMacroSpecAbstract refines TMSpecGenAbstract {
   function method HaltState(tm : TM) : State { BaseSpec.HaltState(tm.base_tm) }
 
   function method ScoreSymbol(symbol : Symbol) : nat {
-    1 // TODO
+    if |symbol| == 0
+      then 0
+      else BaseSpec.ScoreSymbol(symbol[0]) + ScoreSymbol(symbol[1..])
   }
   function method ScoreState(state : State) : nat { 0 }
   
 
   datatype BoundedSimResult =
     | InfiniteInBlock
+    | GaveUpSimBlock  // Too many steps, gave up trying to simulate ... probably infinte.
     | HaltedInBlock(
       new_block : seq<BaseSpec.Symbol>,
       new_pos : nat,
@@ -38,12 +43,50 @@ abstract module BlockMacroSpecAbstract refines TMSpecGenAbstract {
       num_base_steps : nat
     )
 
-  method BoundedSim(base_tm : BaseSpec.TM, state : BaseSpec.State,
-                    start_tape : seq<BaseSpec.Symbol>, pos : int, dir : Dir)
+  method BoundedSim(base_tm : BaseSpec.TM, start_state : BaseSpec.State,
+                    start_tape : seq<BaseSpec.Symbol>, start_pos : int, start_dir : Dir,
+                    max_steps : nat := 10_000)
     returns (result : BoundedSimResult)
   {
+    // TODO: Use array for efficiency?
+    var tape := start_tape;
+    var pos := start_pos;
+    var dir := start_dir;
+    var state := start_state;
     var num_base_steps : nat := 0;
-    print "ERROR: BoundedSim Not Implemented!\n";
+    var num_sim_steps := 0;
+    // TODO: Switch from hard max_steps cutoff to doing infinite repeat detection!
+    while num_sim_steps < max_steps && !IsHalt?(state) && 0 <= pos < |tape| {
+      var cur_symbol := tape[pos];
+      var trans := BaseSpec.LookupTrans(base_tm, state, cur_symbol, dir);
+
+      if trans.InfiniteTrans? {
+        return InfiniteInBlock;
+      }
+      if trans.GaveUpTrans? {
+        return GaveUpSimBlock;
+      }
+
+      assert trans.Transition?;
+      tape := tape[pos := trans.symbol];
+      pos := match(trans.dir) {
+        case Right => pos + 1
+        case Left  => pos - 1
+      };
+      state := trans.state;
+      dir := trans.dir;
+      num_base_steps := num_base_steps + trans.num_base_steps;
+      num_sim_steps := num_sim_steps + 1;
+    }
+    if !(0 <= pos < |tape|) {
+      return ExittedBlock(tape, state, dir, num_base_steps);
+    }
+    if IsHalt?(state) {
+      assert pos >= 0;
+      return HaltedInBlock(tape, pos, num_base_steps);
+    }
+    assert num_sim_steps >= max_steps;
+    return GaveUpSimBlock;
   }
 
   method LookupTrans(tm : TM, state : State, symbol : Symbol, dir : Dir)
@@ -58,6 +101,8 @@ abstract module BlockMacroSpecAbstract refines TMSpecGenAbstract {
     match sim_result {
       case InfiniteInBlock =>
         return InfiniteTrans;
+      case GaveUpSimBlock =>
+        return GaveUpTrans;
       case HaltedInBlock(_, _, _) =>
         // This is not 100% accurate, but good enough for scoring / step count.
         // TODO: Keep track of exact halt location inside new_block.
@@ -83,10 +128,9 @@ module ChainSimBlock refines ChainSimAbstract {
 // Test
 import opened ChainSimBlock
 
-method VerboseSimTM(tm_str : string, block_size : nat, num_sim_steps : nat)
-  requires block_size > 0
+method VerboseSimTM(base_tm : TMSpecNat.TM, block_size : nat, num_sim_steps : nat)
+  // requires block_size > 0
 {
-  var base_tm := Parse.ParseTM(tm_str);
   var tm := BlockMacroSpecNat.BlockMacro(base_tm, block_size);
   var i := 0;
   var config := InitConfig(tm);
@@ -96,17 +140,6 @@ method VerboseSimTM(tm_str : string, block_size : nat, num_sim_steps : nat)
   {
     config := Step(tm, config);
     PrintConfig(config);
-    if config.Config? {
-      print "Tape:  Left: ";
-      if BlockMacroSpecNat.Left in config.tape.data {
-        PrintSemiTape(config.tape.data[BlockMacroSpecNat.Left]);
-      }
-      print "  /  Right: ";
-      if BlockMacroSpecNat.Right in config.tape.data {
-        PrintSemiTape(config.tape.data[BlockMacroSpecNat.Right]);
-      }
-      print "\n";
-    }
     i := i + 1;
   }
 }
@@ -122,9 +155,15 @@ method QuietSimTM(tm_str : string, block_size : nat, num_sim_steps : nat)
 
 method Main() {
   // 4x2 Champion
-  // VerboseSimTM("1RB1LB_1LA0LC_1RZ1LD_1RD0RA", 2, 108);
+  var bb4 := Parse.ParseTM("1RB1LB_1LA0LC_1RZ1LD_1RD0RA");
+  var result := BlockMacroSpecNat.BoundedSim(
+    bb4, TMSpecNat.RunState(0), [0, 0], 0, Right);
+  print "A>00 -> ", result, "\n\n";
+
+  // VerboseSimTM(bb4, 2, 10);
   QuietSimTM("1RB1LB_1LA0LC_1RZ1LD_1RD0RA", 2, 1000);
-  // 5x2 Champion (Block size 3)
+
+  // // 5x2 Champion (Block size 3)
   QuietSimTM("1RB1LC_1RC1RB_1RD0LE_1LA1LD_1RZ0LA", 3,       1_000);
   QuietSimTM("1RB1LC_1RC1RB_1RD0LE_1LA1LD_1RZ0LA", 3,      10_000);
   QuietSimTM("1RB1LC_1RC1RB_1RD0LE_1LA1LD_1RZ0LA", 3,     100_000);

@@ -1,6 +1,7 @@
 include "defs.dfy"
 
 module Parse {
+  import opened DirSpec
   import opened TMSpecNat
 
   method ParseSymbol(symb_char : char) returns (symbol : Symbol) {

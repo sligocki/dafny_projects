@@ -5,6 +5,7 @@ include "tm_spec_gen.dfy"
 include "parse.dfy"
 
 abstract module ChainSimAbstract {
+  import opened DirSpec
   import opened TMSpec : TMSpecGenAbstract
   import Parse
 
@@ -29,10 +30,16 @@ abstract module ChainSimAbstract {
     Tape(map[Left := [], Right := []], BlankSymbol(tm))
   }
 
+  function method PeekSemiTape(semi_tape : SemiTape, default : Symbol) : Symbol {
+    if |semi_tape| == 0
+      then default
+      else Head(semi_tape).symbol
+  }
+
   function method PeekTape(tape : Tape, dir : Dir) : Symbol {
-    if dir !in tape.data || |tape.data[dir]| == 0
+    if dir !in tape.data
       then tape.blank_symbol
-      else Head(tape.data[dir]).symbol
+      else PeekSemiTape(tape.data[dir], tape.blank_symbol)
   }
 
   function method EatOneSymbol(tape : Tape, dir : Dir) : Tape {
@@ -51,29 +58,36 @@ abstract module ChainSimAbstract {
             tape.(data := tape.data[dir := old_tail])
   }
 
-  function method PushOneSymbol(tape : Tape, dir : Dir, symbol_push : Symbol) : Tape {
-    var old_front := if dir in tape.data then tape.data[dir] else [];
-    var symb_front := PeekTape(tape, dir);
-    if symb_front == symbol_push
-      // Pushed symbol matches block, merge them.
-      then if |old_front| == 0
-        // Pushing 1 blank to edge of tape, has no effect.
-        then tape
-        // Increase num_reps on head block.
+  function method PushRepSymbolSemi(semi_tape : SemiTape, rep_symbol : RepSymbol,
+                                    blank_symbol : Symbol) : SemiTape {
+    var symb_front := PeekSemiTape(semi_tape, blank_symbol);
+    if symb_front == rep_symbol.symbol
+      then if |semi_tape| == 0
+        // Pushing blanks to edge of tape, has no effect.
+        then []
+        // Pushed symbol matches top block, merge them.
         else
-          var front_tail := Tail(old_front);
-          var old_head := Head(old_front);
-          var new_head := old_head.(num_reps := old_head.num_reps + 1);
-          tape.(data := tape.data[dir := Cons(new_head, front_tail)])
+          var tail := Tail(semi_tape);
+          var old_head := Head(semi_tape);
+          var new_head := old_head.(num_reps := old_head.num_reps + rep_symbol.num_reps);
+          assert new_head.symbol == rep_symbol.symbol;
+          Cons(new_head, tail)
 
-      // Pushed symbol does not match block, add new block.
-      else tape.(data := tape.data[dir := Cons(RepSymbol(symbol_push, 1), old_front)])
+      // Pushed symbol does not match block, add as seperate block.
+      else Cons(rep_symbol, semi_tape)
+  }
+
+  function method PushRepSymbol(tape : Tape, dir : Dir, rep_symbol : RepSymbol) : Tape {
+    var old_semi := if dir in tape.data then tape.data[dir] else [];
+    var new_semi := PushRepSymbolSemi(old_semi, rep_symbol, tape.blank_symbol);
+    tape.(data := tape.data[dir := new_semi])
   }
 
 
   // TM Simulator
   datatype Config =
     | InfiniteConfig
+    | GaveUpConfig
     | Config(
         tape : Tape,
         dir : Dir,
@@ -92,7 +106,7 @@ abstract module ChainSimAbstract {
 
   datatype ChainStepResult =
     | InfiniteStep
-    | ChainStepResult(new_tape : Tape, num_steps : nat)
+    | ChainStepResult(new_tape : Tape, num_reps : nat)
 
   function method ChainStep(tape : Tape, dir : Dir, new_symbol : Symbol)
     : ChainStepResult
@@ -102,15 +116,17 @@ abstract module ChainSimAbstract {
     if |old_front| == 0
       // Chain step over inf 0s means that this TM will never halt.
       then InfiniteStep
+      // Chain step over finite block.
       else
         // Remove entire block from front.
         var new_front := Tail(old_front);
+
+        // Push full block behind (with new symbol).
         var pop_block := Head(old_front);
         var push_block := pop_block.(symbol := new_symbol);
-        // Push full block behind (with new symbol).
-        var new_back := Cons(push_block, old_back);
-        var new_tape := tape.(data := map[dir := new_front, OtherDir(dir) := new_back]);
-        // Num steps in this chain step is block.num_reps.
+        var new_back := PushRepSymbolSemi(old_back, push_block, tape.blank_symbol);
+        var new_tape := tape.(data :=
+          map[dir := new_front, OtherDir(dir) := new_back]);
         ChainStepResult(new_tape, pop_block.num_reps)
   }
 
@@ -124,6 +140,9 @@ abstract module ChainSimAbstract {
     if trans.InfiniteTrans? {
       return InfiniteConfig;
     }
+    if trans.GaveUpTrans? {
+      return GaveUpConfig;
+    }
 
     assert trans.Transition?;
     var chain_result :=
@@ -131,7 +150,8 @@ abstract module ChainSimAbstract {
         then ChainStep(config.tape, trans.dir, trans.symbol)
         else
           var mid_tape := EatOneSymbol(config.tape, config.dir);
-          ChainStepResult(PushOneSymbol(mid_tape, OtherDir(trans.dir), trans.symbol), 1);
+          ChainStepResult(PushRepSymbol(mid_tape, OtherDir(trans.dir),
+                          RepSymbol(trans.symbol, 1)), 1);
 
     match chain_result {
       case InfiniteStep =>
@@ -174,6 +194,7 @@ abstract module ChainSimAbstract {
   function method ScoreConfig(config : Config) : nat {
     match config
       case InfiniteConfig => 0
+      case GaveUpConfig => 0
       case Config(_, _, _, _) => 
         var tape := config.tape;
         var left_score := if Left in tape.data then ScoreHalfTape(tape.data[Left]) else 0;
@@ -197,11 +218,20 @@ abstract module ChainSimAbstract {
     match config {
       case InfiniteConfig =>
         print "TM Infinite Chain Step\n";
+      case GaveUpConfig =>
+        print "ERROR: Gave up while simulating TM\n";
       case Config(_, _, _, _) =>
         var score := ScoreConfig(config);
         print "Halted: ", TMSpec.IsHalt?(config.state), " Steps: ", config.base_step_count, " Score: ", score,
-              " State: ", config.state, "\n";
+              " State: ", config.state, " Dir: ", Parse.DirToString(config.dir), "\n";
+        // Print tape
+        print "Tape:  Left: ";
+        if Left in config.tape.data { PrintSemiTape(config.tape.data[Left]); }
+        print "  /  Right: ";
+        if Right in config.tape.data { PrintSemiTape(config.tape.data[Right]); }
+        print "\n";
     }
+    print "\n";
   }
 
 

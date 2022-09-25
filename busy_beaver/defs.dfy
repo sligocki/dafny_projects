@@ -1,19 +1,23 @@
-// Basic types and constants used by TMs.
-// We abstract this in order to allow different implementation details
-// Ex: State, Symbol : nat or datatype Symbol = S0 | S1 or macro machine states
-// and symbols.
-abstract module TMSpecAbstract {
-  type Symbol(==)
-  type State(==)
-  const BlankSymbol : Symbol
-  const InitState : State
-
+module DirSpec {
   datatype Dir = Left | Right
   function method OtherDir(dir : Dir) : Dir {
     match dir
       case Left => Right
       case Right => Left
   }
+}
+
+// Basic types and constants used by TMs.
+// We abstract this in order to allow different implementation details
+// Ex: State, Symbol : nat or datatype Symbol = S0 | S1 or macro machine states
+// and symbols.
+abstract module TMSpecAbstract {
+  import opened DirSpec
+
+  type Symbol(==)
+  type State(==)
+  const BlankSymbol : Symbol
+  const InitState : State
 
   // TM Transition Table
   datatype StateOrHalt = RunState(state : State) | Halt

@@ -27,7 +27,6 @@ method SimTM(tm : TM, tape_size : nat, max_steps : nat)
     var cur_symbol := tape[index];
     var trans := LookupTrans(tm, state.state, cur_symbol);
 
-    // Write
     tape[index] := trans.symbol;
     index := match(trans.dir) {
       case Right => index + 1
